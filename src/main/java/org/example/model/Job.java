@@ -8,7 +8,7 @@ public class Job {
     private String command;
     private State state;
     private int attempts;
-    private int max_retries;
+    private int maxRetries;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -36,7 +36,7 @@ public class Job {
         this.state = state;
     }
 
-    public long getAttempts() {
+    public int getAttempts() {
         return attempts;
     }
 
@@ -44,12 +44,12 @@ public class Job {
         this.attempts = attempts;
     }
 
-    public int getMax_retries() {
-        return max_retries;
+    public int getMaxRetries() {
+        return maxRetries;
     }
 
-    public void setMax_retries(int max_retries) {
-        this.max_retries = max_retries;
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
     }
 
     public Instant getCreatedAt() {
