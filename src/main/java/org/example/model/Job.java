@@ -9,6 +9,7 @@ public class Job {
     private State state;
     private int attempts;
     private int maxRetries;
+    private String jobId ;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -67,4 +68,13 @@ public class Job {
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
 }

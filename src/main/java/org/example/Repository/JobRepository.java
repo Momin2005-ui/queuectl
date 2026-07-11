@@ -2,6 +2,7 @@ package org.example.Repository;
 
 import org.example.db.DatabaseManager;
 import org.example.model.Job;
+import org.example.model.State;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,7 +15,7 @@ public class JobRepository {
 
         try {
             Connection connection = DatabaseManager.getConnection();
-            String sql = "INSERT INTO jobs(id,command,state,attempts,max_retries,created_at,updated_at) VALUES(?,?,?,?,?,?,?)";
+            String sql = "INSERT INTO jobs(id,command,state,attempts,jobId,maxRetries,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?)";
 
             PreparedStatement ps =connection.prepareStatement(sql);
 
@@ -23,8 +24,9 @@ public class JobRepository {
             ps.setString(3,job.getState().getValue());
             ps.setInt(4,job.getAttempts());
             ps.setInt(5,job.getMaxRetries());
-            ps.setString(6,job.getCreatedAt().toString());
-            ps.setString(7,job.getUpdatedAt().toString());
+            ps.setString(6, job.getJobId());
+            ps.setString(7,job.getCreatedAt().toString());
+            ps.setString(8,job.getUpdatedAt().toString());
 
             int affectedRows = ps.executeUpdate();
             System.out.println(affectedRows + "rows inserted");
@@ -47,6 +49,18 @@ public class JobRepository {
 
             return  resultSet;
 
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public ResultSet listByState(String state) throws SQLException{
+        try{
+            Connection connection=DatabaseManager.getConnection();
+            String sql = "SELECT * FROM jobs WHERE state = ?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1,state);
+            return ps.executeQuery();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

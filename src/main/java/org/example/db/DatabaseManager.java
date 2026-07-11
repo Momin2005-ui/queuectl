@@ -24,6 +24,7 @@ public class DatabaseManager {
                                                 CHECK(state IN ('pending','processing','completed','failed','dead')),
                                             attempts INTEGER NOT NULL DEFAULT 0,
                                             maxRetries INTEGER NOT NULL DEFAULT 3,
+                                            jobId  TEXT,
                                             createdAt TEXT NOT NULL,
                                             updatedAt TEXT NOT NULL
                                         );
@@ -32,7 +33,7 @@ public class DatabaseManager {
 
             String createWorkerQuery= """
                     CREATE TABLE IF NOT EXISTS workers (
-                                           pid INTEGER PRIMARY KEY,
+                                           pid TEXT PRIMARY KEY,
                                            state TEXT NOT NULL DEFAULT 'running'
                                                 CHECK(state IN ('stopped','running')),
                                            startedAt TEXT NOT NULL

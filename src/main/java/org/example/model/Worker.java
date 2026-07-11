@@ -3,15 +3,15 @@ package org.example.model;
 import java.time.Instant;
 
 public class Worker {
-    long Pid;
+    String Pid;
     StateWorker stateWorker;
     Instant startedAt;
 
-    public long getPid() {
+    public String getPid() {
         return Pid;
     }
 
-    public void setPid(long pid) {
+    public void setPid(String pid) {
         Pid = pid;
     }
 
