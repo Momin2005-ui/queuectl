@@ -9,9 +9,18 @@ public class Job {
     private State state;
     private int attempts;
     private int maxRetries;
-    private String jobId ;
+    private String workerId;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant nextRetry;
+
+    public Instant getNextRetry() {
+        return nextRetry;
+    }
+
+    public void setNextRetry(Instant nextRetry) {
+        this.nextRetry = nextRetry;
+    }
 
     public String getId() {
         return id;
@@ -69,12 +78,12 @@ public class Job {
         this.updatedAt = updatedAt;
     }
 
-    public String getJobId() {
-        return jobId;
+    public String getWorkerId() {
+        return workerId;
     }
 
-    public void setJobId(String jobId) {
-        this.jobId = jobId;
+    public void setWorkerId(String workerId) {
+        this.workerId = workerId;
     }
 
 }

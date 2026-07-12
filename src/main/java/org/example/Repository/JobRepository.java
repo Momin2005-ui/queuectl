@@ -15,7 +15,7 @@ public class JobRepository {
 
         try {
             Connection connection = DatabaseManager.getConnection();
-            String sql = "INSERT INTO jobs(id,command,state,attempts,jobId,maxRetries,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?)";
+            String sql = "INSERT INTO jobs(id,command,state,attempts,workerId,maxRetries,createdAt,updatedAt,nextRetry) VALUES(?,?,?,?,?,?,?,?,?)";
 
             PreparedStatement ps =connection.prepareStatement(sql);
 
@@ -23,10 +23,10 @@ public class JobRepository {
             ps.setString(2,job.getCommand());
             ps.setString(3,job.getState().getValue());
             ps.setInt(4,job.getAttempts());
-            ps.setInt(5,job.getMaxRetries());
-            ps.setString(6, job.getJobId());
+            ps.setInt(6,job.getMaxRetries());
             ps.setString(7,job.getCreatedAt().toString());
             ps.setString(8,job.getUpdatedAt().toString());
+
 
             int affectedRows = ps.executeUpdate();
             System.out.println(affectedRows + "rows inserted");

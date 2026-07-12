@@ -2,6 +2,7 @@ package org.example.Subcommands;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.Repository.ConfigRepository;
 import org.example.Repository.JobRepository;
 import org.example.model.Job;
 import org.example.model.State;
@@ -25,18 +26,20 @@ public class Enqueue implements Callable<Integer> {
 
         try {
             Job job = objectMapper.readValue(jobJson, Job.class);
-
+            ConfigRepository configRepository=new ConfigRepository();
+            int maxRetries = configRepository.getMaxRetries();
+            Instant now = Instant.now();
             job.setAttempts(0);
             job.setState(State.PENDING);
-            job.setMaxRetries(3);
-            job.setCreatedAt(Instant.now());
-            job.setUpdatedAt(Instant.now());
+            job.setMaxRetries(maxRetries);
+            job.setCreatedAt(now);
+            job.setUpdatedAt(now);
 
             jobRepository.insert(job);
 
             System.out.println("Job enqueued successfully.");
 
-            return 0; // Success
+            return 0;
 
         } catch (JsonProcessingException e) {
 

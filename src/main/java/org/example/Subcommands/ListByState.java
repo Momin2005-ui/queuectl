@@ -25,6 +25,7 @@ public class ListByState implements Runnable {
                 System.out.println(rs.getString("state"));
                 System.out.println(rs.getInt("attempts"));
                 System.out.println(rs.getInt("maxRetries"));
+                System.out.println(rs.getString("workerId"));
                 System.out.println(rs.getString("createdAt"));
                 System.out.println(rs.getString("updatedAt"));
 
