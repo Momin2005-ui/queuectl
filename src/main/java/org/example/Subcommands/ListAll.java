@@ -1,10 +1,13 @@
 package org.example.Subcommands;
 
+import org.example.Helper.TimeHelper;
 import org.example.Repository.JobRepository;
+import org.example.model.Job;
 import picocli.CommandLine;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 @CommandLine.Command(name = "listAll")
 public class ListAll implements Runnable {
@@ -13,21 +16,21 @@ public class ListAll implements Runnable {
     public void run() {
         JobRepository jobRepository=new JobRepository();
         try {
-            ResultSet rs =jobRepository.listAll();
+            List<Job> jobs = jobRepository.listAll();
 
-            while (rs.next()) {
+            for (Job job : jobs) {
+                System.out.println(job.getId());
+                System.out.println(job.getCommand());
+                System.out.println(job.getState());
+                System.out.println(job.getWorkerId());
+                System.out.println(job.getMaxRetries());
+                System.out.println(TimeHelper.format(job.getCreatedAt()));
+                System.out.println(TimeHelper.format(job.getUpdatedAt()));
+                System.out.println(TimeHelper.format(job.getNextRetry()));
+                System.out.println("---------------------------------------------------------");
 
-                System.out.println(rs.getString("id"));
-                System.out.println(rs.getString("command"));
-                System.out.println(rs.getString("state"));
-                System.out.println(rs.getInt("attempts"));
-                System.out.println(rs.getInt("maxRetries"));
-                System.out.println(rs.getString("workerId"));
-                System.out.println(rs.getString("createdAt"));
-                System.out.println(rs.getString("updatedAt"));
-
-                System.out.println("----------------");
             }
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

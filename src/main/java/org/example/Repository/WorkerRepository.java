@@ -12,78 +12,95 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WorkerRepository {
 
-    public void start(int count){
-        // 1. Start/register the requested workers
-
-        // 2. Keep workers running continuously
-        //    They must NOT exit just because there are currently no jobs
-
-        // 3. Atomically claim a pending/retry-ready job
-        //    Prevent two workers/processes from claiming the same job
-
-        // 4. Mark job as processing and record enough information
-        //    to recover it if the worker crashes
-
-        // 5. Execute the command through the shell
-
-        // 6. Exit code 0 -> completed
-        //    Non-zero -> failed -> backoff -> retry or dead
-
-        // 7. If no eligible job exists -> wait briefly, then poll again
-
-        // 8. Graceful stop / SIGINT / SIGTERM:
-        //    finish current job, then worker exits
-
-        // 9. SIGKILL/crash:
-        //    no cleanup code runs; another process must detect the stale
-        //    processing job and recover it within 60 seconds
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+    public void start(int count) {
         try {
             List<Worker> workers = createWorkers(count);
 
-            ExecutorService executorService = Executors.newFixedThreadPool(workers.size());
+            ExecutorService executorService =
+                    Executors.newFixedThreadPool(workers.size());
 
-            for(Worker w : workers){
-                  Runnable workerTask = new Runnable() {
-                      @Override
-                      public void run() {
-                          while(isWorkerRunning(w.getPid())){
-                                 try{
-                                     Job job =claimNextJob(w.getPid());
+            // Register once for this worker-start process
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 
-                                     if(job!=null){
-                                         System.out.println(w.getPid()+"claimed Job"+job.getId());
-                                         executeJob(job);
-                                     }
-                                     else{
-                                         Thread.sleep(500);
-                                     }
-                                 }catch (InterruptedException e){
-                                     Thread.currentThread().interrupt();
-                                     break;
-                                 } catch (Exception e) {
-                                     System.err.println("Worker"+w.getPid()+"failed"+e.getMessage());
-                                 }
-                          }
-                          System.out.println("worker"+w.getPid()+"stopped");
+                System.err.println(
+                        "Shutdown requested. Finishing current jobs..."
+                );
 
-                      }
-                  };
-                  executorService.submit(workerTask);
+                // Prevent workers from claiming another job
+                shutdownRequested.set(true);
+
+                // No new worker tasks will be submitted
+                executorService.shutdown();
+
+                try {
+                    // Wait for currently running worker tasks to exit
+                    executorService.awaitTermination(
+                            Long.MAX_VALUE,
+                            TimeUnit.SECONDS
+                    );
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+
+            for (Worker w : workers) {
+
+                Runnable workerTask = () -> {
+
+                    // Check BOTH Ctrl+C flag and DB worker state
+                    while (!shutdownRequested.get()
+                            && isWorkerRunning(w.getPid())) {
+
+                        try {
+                            Job job = claimNextJob(w.getPid());
+
+                            if (job != null) {
+                                System.out.println(
+                                        w.getPid() + " claimed Job " + job.getId()
+                                );
+
+                                // Current job is allowed to finish
+                                executeJob(job);
+
+                            } else {
+                                Thread.sleep(500);
+                            }
+
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+
+                        } catch (Exception e) {
+                            System.err.println(
+                                    "Worker " + w.getPid()
+                                            + " failed: " + e.getMessage()
+                            );
+                        }
+                    }
+
+                    // Worker is now actually finished
+                    markWorkerStopped(w.getPid());
+
+                    System.out.println(
+                            "Worker " + w.getPid() + " stopped"
+                    );
+                };
+
+                executorService.submit(workerTask);
             }
 
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-
     }
 
     public List<Worker> createWorkers(int count){
@@ -133,20 +150,20 @@ public class WorkerRepository {
     }
 
     public ResultSet listByState(String state) throws SQLException {
-        Connection connection =DatabaseManager.getConnection();
         String sql = "SELECT * FROM workers WHERE state = ?";
-        PreparedStatement ps=connection.prepareStatement(sql);
-        ps.setString(1,state);
-        return ps.executeQuery();
-
+        try(Connection connection =DatabaseManager.getConnection();PreparedStatement ps=connection.prepareStatement(sql)){
+            ps.setString(1,state);
+            return ps.executeQuery();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Job claimNextJob(String workerId){
 
-        try {
-            Connection connection=DatabaseManager.getConnection();
-            String sql ="UPDATE jobs SET state='processing',workerId=?,updatedAt=? WHERE id=(SELECT id FROM jobs WHERE state='pending' OR (state='failed' AND nextRetry<=?) ORDER BY createdAt LIMIT 1) AND (state='pending' OR (state='failed' AND nextRetryAt <=?))";
-            PreparedStatement ps=connection.prepareStatement(sql);
+        String sql ="UPDATE jobs SET state='processing',workerId=?,updatedAt=? WHERE id=(SELECT id FROM jobs WHERE state='pending' OR (state='failed' AND nextRetry<=?) ORDER BY createdAt LIMIT 1) AND (state='pending' OR (state='failed' AND nextRetry <=?))";
+        try( Connection connection=DatabaseManager.getConnection(); PreparedStatement ps=connection.prepareStatement(sql)) {
+
             String now =Instant.now().toString();
             ps.setString(1,workerId);
             ps.setString(2,now);
@@ -165,19 +182,18 @@ public class WorkerRepository {
     }
 
     public boolean isWorkerRunning(String workerId){
-        try {
-            Connection connection=DatabaseManager.getConnection();
-            String sql = "SELECT stateWorker from worker WHERE Pid=?";
-            PreparedStatement ps=connection.prepareStatement(sql);
+        String sql = "SELECT stateWorker from workers WHERE Pid=?";
+        try( Connection connection=DatabaseManager.getConnection();PreparedStatement ps=connection.prepareStatement(sql)) {
+            
             ps.setString(1, workerId);
 
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                String state = rs.getString("stateWorker");
-                return state.equalsIgnoreCase("running");
+            try(ResultSet rs = ps.executeQuery();){
+                if (rs.next()) {
+                    String state = rs.getString("stateWorker");
+                    return state.equalsIgnoreCase("running");
+                }
+                return false;
             }
-            return false;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -210,12 +226,12 @@ public class WorkerRepository {
     }
 
     public void markCompleted(Job job) throws SQLException {
-        Connection connection = DatabaseManager.getConnection();
         String sql = "UPDATE jobs SET state = 'completed', updatedAt = ? WHERE id = ? AND state = 'processing'";
-        PreparedStatement  ps = connection.prepareStatement(sql);
-        ps.setString(1, Instant.now().toString());
-        ps.setString(2, job.getId());
-        ps.executeUpdate();
+        try(Connection connection = DatabaseManager.getConnection(); PreparedStatement  ps = connection.prepareStatement(sql)){
+            ps.setString(1, Instant.now().toString());
+            ps.setString(2, job.getId());
+            ps.executeUpdate();
+        }
     }
 
     public void exponentialBackoff(Job job) throws SQLException {
@@ -272,33 +288,82 @@ public class WorkerRepository {
     }
 
     public Job fetchJob(String workerId) throws SQLException {
-        Connection connection=DatabaseManager.getConnection();
         String sql = "SELECT * FROM jobs WHERE workerId=? AND state='processing'";
-        PreparedStatement preparedStatement= connection.prepareStatement(sql);
-        preparedStatement.setString(1,workerId);
-        ResultSet rs = preparedStatement.executeQuery();
+        try(Connection connection=DatabaseManager.getConnection();PreparedStatement preparedStatement= connection.prepareStatement(sql)){
 
-        if (rs.next()) {
-            Job job = new Job();
+            preparedStatement.setString(1,workerId);
+            try(ResultSet rs = preparedStatement.executeQuery()){
 
-            job.setId(rs.getString("id"));
-            job.setCommand(rs.getString("command"));
-            job.setState(State.fromValue(rs.getString("state")));
-            job.setAttempts(rs.getInt("attempts"));
-            job.setMaxRetries(rs.getInt("maxRetries"));
-            job.setWorkerId(rs.getString("workerId"));
-            job.setCreatedAt(Instant.parse(rs.getString("createdAt")));
-            job.setUpdatedAt(Instant.parse(rs.getString("updatedAt")));
 
-            String nextRetry = rs.getString("nextRetry");
-            if (nextRetry != null) {
-                job.setNextRetry(Instant.parse(nextRetry));
+                if (rs.next()) {
+                    Job job = new Job();
+
+                    job.setId(rs.getString("id"));
+                    job.setCommand(rs.getString("command"));
+                    job.setState(State.fromValue(rs.getString("state")));
+                    job.setAttempts(rs.getInt("attempts"));
+                    job.setMaxRetries(rs.getInt("maxRetries"));
+                    job.setWorkerId(rs.getString("workerId"));
+                    job.setCreatedAt(Instant.parse(rs.getString("createdAt")));
+                    job.setUpdatedAt(Instant.parse(rs.getString("updatedAt")));
+
+                    String nextRetry = rs.getString("nextRetry");
+                    if (nextRetry != null) {
+                        job.setNextRetry(Instant.parse(nextRetry));
+                    }
+                    return job;
+                }
             }
 
-            return job;
+            return null;
         }
+    }
 
-        return null;
+    public Map<String, Integer> workerStatus() throws SQLException {
+
+        String sql = """
+            SELECT stateWorker, COUNT(*) AS count
+            FROM workers
+            GROUP BY stateWorker
+            """;
+
+        try (
+                Connection connection = DatabaseManager.getConnection();
+                PreparedStatement ps = connection.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()
+        ) {
+            Map<String, Integer> workerStatus = new HashMap<>();
+
+            while (rs.next()) {
+                workerStatus.put(
+                        rs.getString("stateWorker"),
+                        rs.getInt("count")
+                );
+            }
+
+            return workerStatus;
+        }
+    }
+
+    public void markWorkerStopAll() throws SQLException {
+        String sql ="UPDATE workers SET stateWorker=? WHERE stateWorker=?";
+        try(Connection connection=DatabaseManager.getConnection(); PreparedStatement ps =connection.prepareStatement(sql)){
+            ps.setString(1,"stopped");
+            ps.setString(2,"running");
+            ps.executeUpdate();
+        }
+    }
+
+    public void markWorkerStopped(String workerId){
+        String sql ="UPDATE workers SET stateWorker=? WHERE Pid =? AND stateWorker=?";
+        try(Connection connection=DatabaseManager.getConnection(); PreparedStatement ps =connection.prepareStatement(sql)){
+            ps.setString(1,"stopped");
+            ps.setString(2,workerId);
+            ps.setString(3,"running");
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

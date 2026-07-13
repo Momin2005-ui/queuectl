@@ -5,7 +5,7 @@ import org.example.Subcommands.ListAll;
 import org.example.Subcommands.ListByState;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "queuecli" , subcommands = {Enqueue.class, ListAll.class, ListByState.class, Worker.class},mixinStandardHelpOptions = true)
+@CommandLine.Command(name = "queuecli" , subcommands = {Enqueue.class, ListAll.class, ListByState.class, Worker.class, Config.class,DeadLetterQueue.class, Status.class},mixinStandardHelpOptions = true)
 public class Queuecli implements Runnable {
 
 

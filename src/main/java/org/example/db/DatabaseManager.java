@@ -9,9 +9,8 @@ public class DatabaseManager {
     private static final String DB_URL = PropertyHelper.get("DB_URL");
 
     public static void initialize(){
-        try {
-            Connection connection = getConnection();
-            Statement statement =connection.createStatement();
+        String sql ="INSERT OR IGNORE INTO config(key,value) VALUES(?,?)";
+        try(Connection connection = getConnection();Statement statement =connection.createStatement()) {
 
             String createTableQuery = """
                     CREATE TABLE IF NOT EXISTS jobs (
@@ -49,24 +48,29 @@ public class DatabaseManager {
             statement.execute(createTableQuery);
             statement.execute(createWorkerQuery);
             statement.execute(createConfigQuery);
-            String sql ="INSERT OR IGNORE INTO config(key,value) VALUES(?,?)";
-            PreparedStatement ps =connection.prepareStatement(sql);
-            PreparedStatement ps1 =connection.prepareStatement(sql);
-            ps.setString(1,"backOffBase");
-            ps.setInt(2,2);
-            ps1.setString(1,"maxRetries");
-            ps1.setInt(2,3);
-            ps.executeUpdate();
-            ps1.executeUpdate();
-            ps.close();
-            ps1.close();
-            System.out.println("Database initialised");
-            statement.close();
-            connection.close();
+
+            try(PreparedStatement ps =connection.prepareStatement(sql); PreparedStatement ps1 =connection.prepareStatement(sql)){
+                ps.setString(1,"backOffBase");
+                ps.setInt(2,2);
+
+                ps1.setString(1,"maxRetries");
+                ps1.setInt(2,3);
+
+                ps.executeUpdate();
+                ps1.executeUpdate();
+            }
+
+
+
+//            System.out.println("Database initialised");
+
 
 
         } catch (SQLException e) {
-            throw new RuntimeException("Unable to connect to database");
+            e.printStackTrace();
+            throw new RuntimeException(
+                    "Unable to initialize database: " + e.getMessage(), e
+            );
         }
     }
 

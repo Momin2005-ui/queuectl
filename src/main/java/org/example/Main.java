@@ -8,10 +8,10 @@ import picocli.CommandLine;
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello cli");
+//        System.out.println("Hello cli");
         DatabaseManager.initialize();
         int exitCode = new CommandLine(new Queuecli()).execute(args);
-        System.out.println(exitCode);
+//        System.out.println(exitCode);
 
 
     }
