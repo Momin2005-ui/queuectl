@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class WorkerRepository {
 
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+    private static final long STALE_SECONDS = 30;
     public void start(int count) {
         try {
             List<Worker> workers = createWorkers(count);
@@ -97,6 +98,11 @@ public class WorkerRepository {
 
                 executorService.submit(workerTask);
             }
+            executorService.shutdown();
+
+            executorService.awaitTermination(
+                    Long.MAX_VALUE,
+                    TimeUnit.SECONDS);
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -161,15 +167,27 @@ public class WorkerRepository {
 
     public Job claimNextJob(String workerId){
 
-        String sql ="UPDATE jobs SET state='processing',workerId=?,updatedAt=? WHERE id=(SELECT id FROM jobs WHERE state='pending' OR (state='failed' AND nextRetry<=?) ORDER BY createdAt LIMIT 1) AND (state='pending' OR (state='failed' AND nextRetry <=?))";
+        String sql = "UPDATE jobs SET state='processing', workerId=?, updatedAt=?, lastHeartbeat=? " +
+                "WHERE id = (SELECT id FROM jobs WHERE state='pending' " +
+                "OR (state='failed' AND nextRetry<=?) " +
+                "OR (state='processing' AND lastHeartbeat<=?) " +
+                "ORDER BY createdAt LIMIT 1) " +
+                "AND (state='pending' OR (state='failed' AND nextRetry<=?) OR (state='processing' AND lastHeartbeat<=?))";
+
         try( Connection connection=DatabaseManager.getConnection(); PreparedStatement ps=connection.prepareStatement(sql)) {
 
-            String now =Instant.now().toString();
-            ps.setString(1,workerId);
-            ps.setString(2,now);
-            ps.setString(3,now);
-            ps.setString(4,now);
-            int code =ps.executeUpdate(); // rows Affected
+            String now = Instant.now().toString();
+            String staleCutoff = Instant.now().minusSeconds(STALE_SECONDS).toString();
+
+            ps.setString(1, workerId);   // workerId
+            ps.setString(2, now);        // updatedAt
+            ps.setString(3, now);        // lastHeartbeat (fresh claim time)
+            ps.setString(4, now);        // failed.nextRetry cutoff (subquery)
+            ps.setString(5, staleCutoff);// processing.lastHeartbeat cutoff (subquery)
+            ps.setString(6, now);        // failed.nextRetry cutoff (outer WHERE)
+            ps.setString(7, staleCutoff);// processing.lastHeartbeat cutoff (outer WHERE)
+
+            int code = ps.executeUpdate();
             if(code==1){
                 return fetchJob(workerId);
             }
@@ -306,7 +324,10 @@ public class WorkerRepository {
                     job.setWorkerId(rs.getString("workerId"));
                     job.setCreatedAt(Instant.parse(rs.getString("createdAt")));
                     job.setUpdatedAt(Instant.parse(rs.getString("updatedAt")));
-
+                    String lastHeartbeat = rs.getString("lastHeartbeat");
+                    if (lastHeartbeat != null) {
+                        job.setLastHeartBeat(Instant.parse(lastHeartbeat));
+                    }
                     String nextRetry = rs.getString("nextRetry");
                     if (nextRetry != null) {
                         job.setNextRetry(Instant.parse(nextRetry));

@@ -23,7 +23,8 @@ public class DatabaseManager {
                                             workerId  TEXT,
                                             createdAt TEXT NOT NULL,
                                             updatedAt TEXT NOT NULL,
-                                            nextRetry TEXT
+                                            nextRetry TEXT,
+                                            lastHeartbeat TEXT
                                         );
                     
                     """;

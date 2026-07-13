@@ -13,6 +13,15 @@ public class Job {
     private Instant createdAt;
     private Instant updatedAt;
     private Instant nextRetry;
+    private Instant lastHeartBeat;
+
+    public Instant getLastHeartBeat() {
+        return lastHeartBeat;
+    }
+
+    public void setLastHeartBeat(Instant lastHeartBeat) {
+        this.lastHeartBeat = lastHeartBeat;
+    }
 
     public Instant getNextRetry() {
         return nextRetry;
