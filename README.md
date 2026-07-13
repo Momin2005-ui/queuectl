@@ -136,7 +136,7 @@ From PowerShell in the project directory:
 To use `queuectl` directly from any directory, add the project directory to the Windows `PATH`.
 
 ```powershell
-queuectl status
+./queuectl status
 ```
 
 ## CLI Usage
@@ -144,7 +144,7 @@ queuectl status
 ### Enqueue a Job
 
 ```bash
-queuectl enqueue "{\"id\":\"job1\",\"command\":\"echo Hello\"}"
+./queuectl enqueue "{\"id\":\"job1\",\"command\":\"echo Hello\"}"
 ```
 
 A job contains an ID and the shell command that should be executed.
@@ -152,7 +152,7 @@ A job contains an ID and the shell command that should be executed.
 ### Start Workers
 
 ```bash
-queuectl worker start --count 3
+./queuectl worker start --count 3
 ```
 
 Starts three workers.
@@ -160,7 +160,7 @@ Starts three workers.
 ### Stop Workers
 
 ```bash
-queuectl worker stop
+./queuectl worker stop
 ```
 
 Requests running workers to stop gracefully.
@@ -168,7 +168,7 @@ Requests running workers to stop gracefully.
 ### View Status
 
 ```bash
-queuectl status
+./queuectl status
 ```
 
 Displays queue state information and active worker information.
@@ -176,13 +176,13 @@ Displays queue state information and active worker information.
 ### List Jobs by State
 
 ```bash
-queuectl list --state pending
+./queuectl list --state pending
 ```
 
 JSON output:
 
 ```bash
-queuectl list --state pending --json
+./queuectl list --state pending --json
 ```
 
 ### Dead Letter Queue
@@ -190,13 +190,13 @@ queuectl list --state pending --json
 List dead jobs:
 
 ```bash
-queuectl dlq list
+./queuectl dlq list
 ```
 
 Retry a dead job:
 
 ```bash
-queuectl dlq retry job1
+./queuectl dlq retry job1
 ```
 
 ### Configuration
@@ -204,7 +204,7 @@ queuectl dlq retry job1
 Example:
 
 ```bash
-queuectl config set max-retries 3
+./queuectl config set max-retries 3
 ```
 
 ## Job Lifecycle
@@ -274,7 +274,7 @@ Workers retrieve jobs from persistent storage, execute their commands, and updat
 Multiple workers can be started using:
 
 ```bash
-queuectl worker start --count <number>
+./queuectl worker start --count <number>
 ```
 
 ## Building the Executable JAR
@@ -314,7 +314,7 @@ Important scenarios to verify include:
 
 CLI demo recording:
 
-> Add demo recording link here before submission.
+https://drive.google.com/file/d/1i39LRCQPn8ca3iE55wY_pJe3L6M47PZO/view
 
 ## Design Decisions
 
