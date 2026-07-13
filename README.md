@@ -144,7 +144,7 @@ queuectl status
 ### Enqueue a Job
 
 ```bash
-queuectl enqueue '{"id":"job1","command":"echo Hello"}'
+queuectl enqueue "{\"id\":\"job1\",\"command\":\"echo Hello\"}"
 ```
 
 A job contains an ID and the shell command that should be executed.
