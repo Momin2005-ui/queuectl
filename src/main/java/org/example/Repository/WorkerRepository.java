@@ -232,6 +232,19 @@ public class WorkerRepository {
 
         Process process =processBuilder.start();
 
+        Thread heartbeatThread = new Thread(() -> {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    Thread.sleep(10_000); // refresh every 10 seconds
+                    updateHeartbeat(job.getId());
+                }
+            } catch (InterruptedException e) {
+                // Process finished, thread is being stopped — normal exit
+            }
+        });
+        heartbeatThread.setDaemon(true);
+        heartbeatThread.start();
+
         int exitCode= process.waitFor();
 
         if(exitCode==0){
@@ -384,6 +397,18 @@ public class WorkerRepository {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void updateHeartbeat(String jobId) {
+        String sql = "UPDATE jobs SET lastHeartbeat = ? WHERE id = ? AND state = 'processing'";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, Instant.now().toString());
+            ps.setString(2, jobId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to update heartbeat for job " + jobId + ": " + e.getMessage());
         }
     }
 
