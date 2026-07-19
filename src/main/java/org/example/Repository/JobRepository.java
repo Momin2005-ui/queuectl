@@ -169,6 +169,35 @@ public class JobRepository {
         }
     }
 
+    public Job findById(String Id) throws SQLException {
+        String sql = "SELECT * FROM jobs WHERE id =?";
+
+        try(Connection connection =DatabaseManager.getConnection() ; PreparedStatement ps = connection.prepareStatement(sql)){
+             ps.setString(1,Id);
+             ResultSet rs =ps.executeQuery();
+            Job job = new Job();
+             if(rs.next())
+            {
+                job.setId(rs.getString("id"));
+                job.setCommand(rs.getString("command"));
+                job.setState(State.fromValue(rs.getString("state")));
+                job.setAttempts(rs.getInt("attempts"));
+                job.setMaxRetries(rs.getInt("maxRetries"));
+                job.setWorkerId(rs.getString("workerId"));
+                job.setCreatedAt(Instant.parse(rs.getString("createdAt")));
+                job.setUpdatedAt(Instant.parse(rs.getString("updatedAt")));
+                if(rs.getString("nextRetry")!=null){
+                    job.setNextRetry(Instant.parse(rs.getString("nextRetry")));
+                }
+                if(rs.getString("lastHeartBeat")!=null){
+                    job.setLastHeartBeat(Instant.parse(rs.getString("lastHeartBeat")));
+                }
+                return job;
+            }
+            return null;
+        }
+    }
+
 }
 
 

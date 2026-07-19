@@ -6,7 +6,11 @@ import java.sql.*;
 
 public class DatabaseManager {
 
-    private static final String DB_URL = PropertyHelper.get("DB_URL");
+    private static  String DB_URL = PropertyHelper.get("DB_URL");
+
+    public static void setUrl(String url){
+        DB_URL =url;
+    }
 
     public static void initialize(){
         String sql ="INSERT OR IGNORE INTO config(key,value) VALUES(?,?)";
